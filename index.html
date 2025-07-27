@@ -13,10 +13,6 @@
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
-        .dropzone-active {
-            border-color: #2563eb;
-            background-color: #eff6ff;
-        }
         .result-card {
             transition: all 0.3s ease-in-out;
             opacity: 0;
@@ -42,29 +38,55 @@
         .modal {
             transition: opacity 0.25s ease;
         }
-        .modal-active {
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-        .modal-content {
-            transition: transform 0.25s ease;
-        }
         .clickable-additive {
             cursor: pointer;
             text-decoration: underline;
             color: #2563eb;
             font-weight: 500;
         }
-        #chat-response p {
-            margin-top: 0.5rem;
-        }
-        #chat-response strong {
-            color: #1f2937;
-        }
         #camera-view {
             width: 100%;
             height: auto;
             border-radius: 0.5rem;
+        }
+        /* Scanning Effect */
+        .scanning::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 255, 255, 0.7);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.9), 0 0 20px rgba(0, 255, 255, 0.9);
+            animation: scan 2s ease-in-out infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        /* Skeletal Loader */
+        .skeleton-box {
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            50% { opacity: .5; }
+        }
+        /* Tap to Focus */
+        .focus-ring {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: focus-anim 0.5s ease-out;
+            pointer-events: none;
+        }
+        @keyframes focus-anim {
+            0% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
         }
     </style>
 </head>
@@ -92,15 +114,23 @@
             <p class="text-center text-gray-500 mt-4 text-sm">You can also drag & drop or paste an image.</p>
         </div>
         
-        <div id="imagePreviewContainer" class="mt-4 hidden text-center">
+        <div id="imagePreviewContainer" class="mt-4 hidden text-center relative overflow-hidden rounded-lg">
             <img id="imagePreview" class="max-w-xs mx-auto rounded-lg shadow-md" alt="Image Preview">
             <button id="analyzeButton" class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">Analyze Label</button>
         </div>
 
-        <!-- Loading Spinner -->
-        <div id="loader" class="mt-8 hidden flex-col items-center">
-            <div class="loader"></div>
-            <p class="mt-4 text-gray-600">Performing advanced analysis...</p>
+        <!-- Skeletal Loader -->
+        <div id="loader" class="mt-8 hidden space-y-4">
+            <div class="flex justify-center items-center flex-col space-y-3">
+                <div class="skeleton-box w-20 h-20 rounded-full"></div>
+                <div class="skeleton-box w-32 h-8"></div>
+                <div class="skeleton-box w-48 h-6"></div>
+            </div>
+            <div class="space-y-3 pt-6">
+                <div class="skeleton-box w-full h-16"></div>
+                <div class="skeleton-box w-full h-16"></div>
+                <div class="skeleton-box w-full h-16"></div>
+            </div>
         </div>
 
         <!-- Results -->
@@ -149,10 +179,10 @@
     </div>
     
     <div id="camera-modal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center hidden bg-black bg-opacity-75">
-        <div class="bg-white w-full max-w-lg mx-auto rounded-lg shadow-lg z-50 p-4 flex flex-col">
+        <div class="bg-white w-full max-w-lg mx-auto rounded-lg shadow-lg z-50 p-4 flex flex-col relative">
             <video id="camera-view" autoplay playsinline></video>
-            <canvas id="camera-canvas" class="hidden"></canvas>
-            <div class="mt-4 flex justify-around items-center">
+            <canvas id="camera-canvas" class="hidden absolute top-4 left-4 rounded-lg"></canvas>
+            <div id="camera-controls" class="mt-4 flex justify-around items-center">
                 <button id="cancel-camera" class="p-3 bg-gray-300 text-gray-800 font-semibold rounded-full" onclick="closeCamera()">
                     <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -162,6 +192,10 @@
                 <button id="flash-button" class="p-3 bg-gray-300 text-gray-800 font-semibold rounded-full hidden">
                     <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </button>
+            </div>
+             <div id="recapture-controls" class="mt-4 flex justify-around items-center hidden">
+                <button id="recapture-button" class="px-6 py-3 bg-gray-700 text-white font-semibold rounded-full">Recapture</button>
+                <button id="use-photo-button" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-full">Use Photo</button>
             </div>
         </div>
     </div>
@@ -197,6 +231,10 @@
         const cameraCanvas = document.getElementById('camera-canvas');
         const captureButton = document.getElementById('capture-button');
         const flashButton = document.getElementById('flash-button');
+        const cameraControls = document.getElementById('camera-controls');
+        const recaptureControls = document.getElementById('recapture-controls');
+        const recaptureButton = document.getElementById('recapture-button');
+        const usePhotoButton = document.getElementById('use-photo-button');
 
         let file = null;
         let lastAnalysisData = null;
@@ -218,6 +256,9 @@
         cameraButton.addEventListener('click', openCamera);
         captureButton.addEventListener('click', capturePhoto);
         flashButton.addEventListener('click', toggleFlash);
+        recaptureButton.addEventListener('click', recapturePhoto);
+        usePhotoButton.addEventListener('click', usePhoto);
+        cameraView.addEventListener('click', handleFocus);
         mainContainer.addEventListener('dragover', (e) => { e.preventDefault(); mainContainer.classList.add('dropzone-active'); });
         mainContainer.addEventListener('dragleave', () => { mainContainer.classList.remove('dropzone-active'); });
         mainContainer.addEventListener('drop', (e) => {
@@ -262,7 +303,6 @@
                     cameraModal.classList.remove('hidden');
                     cameraView.srcObject = stream;
                     
-                    // Check for flash capability
                     const track = stream.getVideoTracks()[0];
                     const capabilities = track.getCapabilities();
                     if (capabilities.torch) {
@@ -283,11 +323,24 @@
             cameraCanvas.height = cameraView.videoHeight;
             context.drawImage(cameraView, 0, 0, cameraCanvas.width, cameraCanvas.height);
             
+            cameraView.classList.add('hidden');
+            cameraCanvas.classList.remove('hidden');
+            cameraControls.classList.add('hidden');
+            recaptureControls.classList.remove('hidden');
+        }
+        
+        function recapturePhoto() {
+            cameraView.classList.remove('hidden');
+            cameraCanvas.classList.add('hidden');
+            cameraControls.classList.remove('hidden');
+            recaptureControls.classList.add('hidden');
+        }
+
+        function usePhoto() {
             cameraCanvas.toBlob(blob => {
                 const capturedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
                 handleFile(capturedFile);
             }, 'image/jpeg');
-
             closeCamera();
         }
 
@@ -303,6 +356,20 @@
             }
         }
 
+        function handleFocus(e) {
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const focusRing = document.createElement('div');
+            focusRing.className = 'focus-ring';
+            focusRing.style.left = `${x - 30}px`;
+            focusRing.style.top = `${y - 30}px`;
+            
+            e.target.parentNode.appendChild(focusRing);
+            setTimeout(() => focusRing.remove(), 500);
+        }
+
         function closeCamera() {
             if (stream) {
                 if (flashOn) {
@@ -312,6 +379,7 @@
             }
             cameraModal.classList.add('hidden');
             flashButton.classList.add('hidden');
+            recapturePhoto(); // Reset view for next time
         }
 
         async function getAnalysis(file) {
@@ -319,48 +387,56 @@
                 alert("Please enter your Gemini API key in the script.");
                 return;
             }
-            uploader.classList.add('hidden');
-            loader.classList.remove('hidden');
-            results.classList.remove('visible');
+            imagePreviewContainer.classList.add('scanning');
+            analyzeButton.disabled = true;
+            analyzeButton.textContent = "Analyzing...";
+            
+            setTimeout(async () => {
+                imagePreviewContainer.classList.add('hidden');
+                loader.classList.remove('hidden');
 
-            const base64Image = await fileToBase64(file);
-            const prompt = `
-                Perform a professional, clinical-grade analysis of the food label for an Indian user.
-                You MUST respond with only a valid JSON object.
-                The JSON object must have a key "scores" containing 6 parameter objects.
-                For each parameter, provide a "score" (0-10) and a brief "reason".
-                For "processing_additives", also include an "additives" array of strings found.
-                For "carcinogenic_risk", the score is binary (0 for risk, 10 for none).
+                const base64Image = await fileToBase64(file);
+                const prompt = `
+                    Perform a professional, clinical-grade analysis of the food label for an Indian user.
+                    You MUST respond with only a valid JSON object.
+                    The JSON object must have a key "scores" containing 6 parameter objects.
+                    For each parameter, provide a "score" (0-10) and a brief "reason".
+                    For "processing_additives", also include an "additives" array of strings found.
+                    For "carcinogenic_risk", the score is binary (0 for risk, 10 for none).
 
-                1.  **glycemic_nutrient_density**: Score based on glycemic impact (refined vs. whole carbs) and nutrient density. High fiber and protein improve the score.
-                2.  **micronutrient_bioavailability**: Score based on key vitamins/minerals (Iron, Vit D, Calcium) relevant to Indian deficiencies.
-                3.  **health_trifecta**: Score based on the "Health Trifecta": Added Sugar, Sodium, and Saturated/Trans Fats. High levels get a low score.
-                4.  **ingredient_quality**: Score based on the quality of main ingredients (e.g., whole grains vs. refined flour, healthy oils vs. palm oil).
-                5.  **processing_additives**: Score based on the length of the ingredients list and presence of artificial additives. List found additives.
-                6.  **carcinogenic_risk**: Score 0 if any ingredient is a known or suspected carcinogen (e.g., certain artificial sweeteners, preservatives like nitrates). Otherwise, score 10.
+                    1.  **glycemic_nutrient_density**: Score based on glycemic impact (refined vs. whole carbs) and nutrient density. High fiber and protein improve the score.
+                    2.  **micronutrient_bioavailability**: Score based on key vitamins/minerals (Iron, Vit D, Calcium) relevant to Indian deficiencies.
+                    3.  **health_trifecta**: Score based on the "Health Trifecta": Added Sugar, Sodium, and Saturated/Trans Fats. High levels get a low score.
+                    4.  **ingredient_quality**: Score based on the quality of main ingredients (e.g., whole grains vs. refined flour, healthy oils vs. palm oil).
+                    5.  **processing_additives**: Score based on the length of the ingredients list and presence of artificial additives. List found additives.
+                    6.  **carcinogenic_risk**: Score 0 if any ingredient is a known or suspected carcinogen (e.g., certain artificial sweeteners, preservatives like nitrates). Otherwise, score 10.
 
-                Example:
-                {
-                  "scores": {
-                    "glycemic_nutrient_density": { "score": 7, "reason": "Moderate glycemic impact due to whole grains." },
-                    "micronutrient_bioavailability": { "score": 5, "reason": "Contains some calcium but lacks iron." },
-                    "health_trifecta": { "score": 2, "reason": "High in sodium and added sugar." },
-                    "ingredient_quality": { "score": 3, "reason": "Uses refined palm oil." },
-                    "processing_additives": { "score": 6, "reason": "Contains some preservatives.", "additives": ["Sodium Benzoate"] },
-                    "carcinogenic_risk": { "score": 10, "reason": "No carcinogenic ingredients found." }
-                  }
+                    Example:
+                    {
+                      "scores": {
+                        "glycemic_nutrient_density": { "score": 7, "reason": "Moderate glycemic impact due to whole grains." },
+                        "micronutrient_bioavailability": { "score": 5, "reason": "Contains some calcium but lacks iron." },
+                        "health_trifecta": { "score": 2, "reason": "High in sodium and added sugar." },
+                        "ingredient_quality": { "score": 3, "reason": "Uses refined palm oil." },
+                        "processing_additives": { "score": 6, "reason": "Contains some preservatives.", "additives": ["Sodium Benzoate"] },
+                        "carcinogenic_risk": { "score": 10, "reason": "No carcinogenic ingredients found." }
+                      }
+                    }
+                `;
+
+                try {
+                    const response = await makeGeminiRequest(prompt, base64Image);
+                    lastAnalysisData = response.scores; // Store for chat
+                    displayResults(lastAnalysisData);
+                } catch (error) {
+                    handleError(error);
+                } finally {
+                    loader.classList.add('hidden');
+                    imagePreviewContainer.classList.remove('scanning');
+                    analyzeButton.disabled = false;
+                    analyzeButton.textContent = "Analyze Label";
                 }
-            `;
-
-            try {
-                const response = await makeGeminiRequest(prompt, base64Image);
-                lastAnalysisData = response.scores; // Store for chat
-                displayResults(lastAnalysisData);
-            } catch (error) {
-                handleError(error);
-            } finally {
-                loader.classList.add('hidden');
-            }
+            }, 2000); // Wait for scanning animation
         }
 
         function displayResults(scores) {
