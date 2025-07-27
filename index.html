@@ -44,22 +44,35 @@
             color: #2563eb;
             font-weight: 500;
         }
-        #camera-view {
+        #camera-view, #camera-canvas {
             width: 100%;
             height: auto;
             border-radius: 0.5rem;
         }
         /* Scanning Effect */
+        #imagePreviewContainer {
+            max-width: 24rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #imagePreview {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            object-fit: contain;
+        }
         .scanning::after {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
+            right: 0;
             height: 4px;
-            background: rgba(0, 255, 255, 0.7);
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.9), 0 0 20px rgba(0, 255, 255, 0.9);
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.7), transparent);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.9);
             animation: scan 2s ease-in-out infinite;
+            border-radius: 2px;
         }
         @keyframes scan {
             0% { top: 0; }
@@ -114,8 +127,8 @@
             <p class="text-center text-gray-500 mt-4 text-sm">You can also drag & drop or paste an image.</p>
         </div>
         
-        <div id="imagePreviewContainer" class="mt-4 hidden text-center relative overflow-hidden rounded-lg">
-            <img id="imagePreview" class="max-w-xs mx-auto rounded-lg shadow-md" alt="Image Preview">
+        <div id="imagePreviewContainer" class="mt-4 hidden text-center relative rounded-lg">
+            <img id="imagePreview" class="rounded-lg shadow-md" alt="Image Preview">
             <button id="analyzeButton" class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">Analyze Label</button>
         </div>
 
@@ -180,8 +193,10 @@
     
     <div id="camera-modal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center hidden bg-black bg-opacity-75">
         <div class="bg-white w-full max-w-lg mx-auto rounded-lg shadow-lg z-50 p-4 flex flex-col relative">
-            <video id="camera-view" autoplay playsinline></video>
-            <canvas id="camera-canvas" class="hidden absolute top-4 left-4 rounded-lg"></canvas>
+            <div class="relative">
+                <video id="camera-view" autoplay playsinline></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+            </div>
             <div id="camera-controls" class="mt-4 flex justify-around items-center">
                 <button id="cancel-camera" class="p-3 bg-gray-300 text-gray-800 font-semibold rounded-full" onclick="closeCamera()">
                     <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -583,7 +598,10 @@
 
             const body = {
                 contents: [{ parts }],
-                generationConfig: { responseMimeType: "application/json" }
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    temperature: 0
+                }
             };
             
             if (!base64Image) {
