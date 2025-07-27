@@ -340,6 +340,7 @@
             cameraCanvas.toBlob(blob => {
                 const capturedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
                 handleFile(capturedFile);
+                getAnalysis(capturedFile);
             }, 'image/jpeg');
             closeCamera();
         }
